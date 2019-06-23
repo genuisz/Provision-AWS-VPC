@@ -1,0 +1,22 @@
+- name: exact count of stack ec2 instances running
+  ec2:
+    key_name: "{{ ec2_key_name }}"
+	group: "{{ ec2_stack_name }}-webservers"
+	volumes:
+	- device_name: /dev/sda1
+	  volume_type: gp2
+	  volume_size: 8
+	  delete_on_termination: true
+	vpc_subnet_id: "{{ vpc_subnet_id }}"
+	instance_type: t2.micro
+	image: "{{ fnd_results.results[0].ami_id }}"
+	wait: true
+	region: "{{ ec2_region }}"
+	exact_count: "{{ ec2_exact_count }}"
+	count_tag:
+	  Count: "{{ ec2_stack_name }}"
+    instance_tags:
+	  Name: "{{ ec2_stack_name }}"
+	  Count: "{{ ec2_stack_name }}"
+	assign_public_ip: true
+   register: ec2

@@ -1,0 +1,72 @@
+---
+- name: servers are provisioned in vpc
+  hosts: localhost
+  gater_facts: false
+  vars:
+    # requires ec2_stack_name, ec2_region and ec2_key_name
+	ec2_vpcidr: 172.31.0.0/16
+	ec2_subnetcidr: 172.31.0.0/24
+	ec2_az: a
+	
+tasks:
+- name: vpc is present
+  ec2_vpc_net:
+    state: present
+	region: "{{ ec2_region }}"
+	cidr_block: "{{ ec2_vpcidr }}"
+	name: "{{ec2_stack_name }}-vpc"
+	tags:
+	   tool: ansible
+   register: network
+   
+- name: vpc subnet is present
+  ec2_vpc_subnet:
+	region: "{{ ec2_region }}"
+	state: present
+	cidr: "{{ ec2_subnetcidr }}"
+	az: "{{ ec2_region }}{{ ec2_az }}"
+	resource_tags:
+	   tool: ansible
+	   Name: "{{ ec2_stack_name }}-subnet-{{ ec2_az }}"
+	vpc_id: "{{ network.vpc.id }}"
+	register: vpc_subnet
+	
+- name: vpc internet gateway is present
+  ec2_vpc_igw:
+     region: "{{ ec2_region }}"
+	 vpc_id: "{{ network.vpc.id }}"
+	 state: present
+  region: igw
+  
+- name: vpc publlic subnet route table is present
+  ec2_vpc_route_table:
+	region: "{{ ec2_region }}"
+	vpc_id: "{{network.vpc.id }}"
+	tags:
+	  Name: "{{ ec2_stack_name }}-public"
+	subnets:
+	  - "{{ vpc_subnet.subnet.id }}"
+	routes:
+	  - dest: 0.0.0.0/0
+	    gateway_id: "{{ igw.gateway_id }}"
+		
+- name: vpc security group is present
+  ec2_group:
+	name: "{{ ec2_stack_name }}-webservers"
+	region: "{{ ec2_region }}"
+	description: SSH and HTTP/HTTPS
+	vpc_id: "{{ network.vpc.id }}
+	rules:
+	  - proto: tcp
+	    from_port: 22
+		to_port: 22
+		cidr_ip: 0.0.0.0/0
+	  - proto: tcp
+	    form_port: 80
+		to_port: 80
+		cidr_ip: 0.0.0.0/0
+	  - proto: tcp
+	    form_port: 443
+		to_port: 443
+		cidr_ip: 0.0.0.0/0
+
